@@ -1,0 +1,50 @@
+load apron.http.Request
+load apron,http.Response
+load apron.session.User
+load apron.session.Token
+load apron.crypt.Password
+load apron.handlebars.Template
+
+# User login service
+# ---
+# Example of how to write a user login service using Apron.
+#
+
+## MODEL
+
+model User:User
+
+## EVENT HANDELERS
+
+event preController(request: Request, response: Response)
+  ? (!request.has(Token) |
+      !request.has(User) |
+      !request.get(User).has(Token) |
+      !request.path.is(user/login)
+      !request.get(User).get(Token).validate())
+    response.redirect(user/login)
+
+  ? (!request.get(User).getRole().canAccess(request.path))
+    response.accessDenied()
+
+## CONTROLLERS
+
+namespace user
+
+  controller login(): Template
+    return Template('login.html')
+
+  controller login(username:Text, password: Text): Token
+    let user = User.get(username)
+
+    ? User.get(username).password.check(password)
+      let token = Token()
+      user.setToken(token)
+      me.response.redirect(site/start)
+
+    me.response.accessDenied(Alert('Wrong username or password!', danger))
+
+namespace site
+
+  controller start(): Template
+    return Template('start.html')
